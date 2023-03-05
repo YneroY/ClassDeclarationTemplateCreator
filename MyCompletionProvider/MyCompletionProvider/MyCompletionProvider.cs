@@ -27,8 +27,11 @@ namespace MyCompletionProvider
 
             switch (trigger.Kind)
             {
-                case CompletionTriggerKind.Insertion:
-                    return ShouldTriggerCompletion(text, caretPosition);
+                //case CompletionTriggerKind.Insertion:
+                //    return ShouldTriggerCompletion(text, caretPosition);
+
+                case CompletionTriggerKind.Invoke:
+                    return true;
 
                 default:
                     return false;
@@ -63,15 +66,16 @@ namespace MyCompletionProvider
             var model = await context.Document.GetSemanticModelAsync(context.CancellationToken).ConfigureAwait(false);
             var text = await model.SyntaxTree.GetTextAsync(context.CancellationToken).ConfigureAwait(false);
 
-            if (!ShouldTriggerCompletion(text, context.Position))
-            {
-                return;
-            }
+            //if (!ShouldTriggerCompletion(text, context.Position))
+            //{
+            //    return;
+            //}
 
             var classVisitor = new ClassVirtualizationVisitor();
 
             Dictionary<string, List<string>> namespaceToClassesMapping = new Dictionary<string, List<string>>();
             Dictionary<string, List<PropertyInfo>> classToPropertiesMapping = new Dictionary<string, List<PropertyInfo>>();
+            //Dictionary<string, string> classToCommentMapping = new Dictionary<string, string>();
 
             foreach (var item in allDocuments)
             {
@@ -107,6 +111,31 @@ namespace MyCompletionProvider
                 {
                     string className = individualClass.Identifier.ValueText;
 
+                    #region Get comment, if any.
+
+                    //var trivias = individualClass.GetLeadingTrivia();
+                    //SyntaxTrivia xmlCommentTrivia = trivias.FirstOrDefault(t => t.IsKind(SyntaxKind.SingleLineDocumentationCommentTrivia));
+                    //SyntaxNode xml = xmlCommentTrivia.GetStructure();
+
+                    //var xmlTrivia = individualClass.GetLeadingTrivia()
+                    //                               .Select(i => i.GetStructure())
+                    //                               .OfType<DocumentationCommentTriviaSyntax>()
+                    //                               .FirstOrDefault();
+
+                    //if (xmlTrivia != null)
+                    //{
+                    //    XmlElementSyntax syntax = xmlTrivia.ChildNodes()
+                    //            .OfType<XmlElementSyntax>()
+                    //            .FirstOrDefault(i => i.StartTag.Name.ToString().Equals("summary"));
+
+                    //    if (syntax != null)
+                    //    {
+                    //        classToCommentMapping.Add(className, syntax.Content[0].ToString().Trim(new char[] { ' ', '/' }));
+                    //    }
+                    //}
+
+                    #endregion
+
                     namespaceToClassesMapping[namespaceDeclarationSyntax.Name.ToString()].Add(className);
 
                     var classSymbol = currentSemanticModel.GetDeclaredSymbol(individualClass);
@@ -138,9 +167,11 @@ namespace MyCompletionProvider
 
                 foreach (var myClass in item.Value)
                 {
+                    string desc = $"Initialize {myClass} template";
+
                     var properties = ImmutableDictionary<string, string>.Empty
                                     .Add(Receiver, namespaceString)
-                                    .Add(Description, "nothing");
+                                    .Add(Description, desc);
 
                     int numOfProperties = classToPropertiesMapping[myClass].Count();
 
@@ -212,11 +243,11 @@ namespace MyCompletionProvider
             // Get new text replacement and span.
             var receiver = item.Properties[Receiver];
             var newText = $"{receiver}.{item.DisplayText}";
-            var newSpan = new TextSpan(item.Span.Start - 1, 1);
+            var newSpan = new TextSpan(item.Span.Start, 1);
 
             // Return the completion change with the new text change.
             var textChange = new TextChange(newSpan, newText);
-            return Task.FromResult(CompletionChange.Create(textChange));
+            return Task.FromResult(CompletionChange.Create(textChange, includesCommitCharacter: true));
         }
     }
 
