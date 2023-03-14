@@ -1,23 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
-  <Metadata>
-    <Identity Id="MyCompletionProviderVsix.12cc5eeb-e282-4c66-9a31-708d9c8db6a4" Version="1.0" Language="en-US" Publisher="Tan Yee Yong" />
-    <DisplayName>MyCompletionProviderVsix</DisplayName>
-    <Description>Empty VSIX Project.</Description>
-  </Metadata>
-  <Installation AllUsers="true">
-   <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.0,18.0)">
-      <ProductArchitecture>amd64</ProductArchitecture>
-   </InstallationTarget>
-  </Installation>
-  <Dependencies>
-    <Dependency Id="Microsoft.Framework.NDP" DisplayName="Microsoft .NET Framework" d:Source="Manual" Version="[4.5,)" />
-  </Dependencies>
-  <Assets>
-    <Asset Type="Microsoft.VisualStudio.MefComponent" d:Source="Project" d:ProjectName="MyCompletionProvider" Path="|MyCompletionProvider|" />
-  </Assets>
-  <Prerequisites>
-    <Prerequisite Id="Microsoft.VisualStudio.Component.CoreEditor" Version="[17.0,18.0)" DisplayName="Visual Studio core editor" />
-    <Prerequisite Id="Microsoft.VisualStudio.Component.Roslyn.LanguageServices" Version="[17.0,18.0)" DisplayName="Roslyn Language Services" />
-  </Prerequisites>
+    <Metadata>
+        <Identity Id="MyCompletionProviderVsix.12cc5eeb-e282-4c66-9a31-708d9c8db6a4" Version="1.0.0" Language="en-US" Publisher="YYTan" />
+        <DisplayName>Class template generator</DisplayName>
+        <Description xml:space="preserve">To auto generate class template quickly by decorating classes with attribute  "ClassTemplate". It will show up in the auto complete list subsequently.</Description>
+    </Metadata>
+    <Installation AllUsers="true">
+        <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.0,18.0)">
+            <ProductArchitecture>amd64</ProductArchitecture>
+        </InstallationTarget>
+    </Installation>
+    <Dependencies>
+        <Dependency Id="Microsoft.Framework.NDP" DisplayName="Microsoft .NET Framework" d:Source="Manual" Version="[4.5,)" />
+    </Dependencies>
+    <Assets>
+        <Asset Type="Microsoft.VisualStudio.MefComponent" d:Source="Project" d:ProjectName="MyCompletionProvider" Path="|MyCompletionProvider|" />
+    </Assets>
+    <Prerequisites>
+        <Prerequisite Id="Microsoft.VisualStudio.Component.CoreEditor" Version="[17.0,18.0)" DisplayName="Visual Studio core editor" />
+        <Prerequisite Id="Microsoft.VisualStudio.Component.Roslyn.LanguageServices" Version="[17.0,18.0)" DisplayName="Roslyn Language Services" />
+    </Prerequisites>
 </PackageManifest>
