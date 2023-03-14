@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Completion;
 using Microsoft.CodeAnalysis.CSharp;
@@ -259,9 +260,21 @@ namespace MyCompletionProvider
         {
             node = (ClassDeclarationSyntax)base.VisitClassDeclaration(node);
 
-            //string className = node.Identifier.ValueText;
+            // Only interested in class decorated with specific attribute
+            if(node.AttributeLists.Count > 0)
+            {
+                // Get the attribute name
+                foreach(var item in node.AttributeLists)
+                {
+                    AttributeSyntax attributeSyntax = item.Attributes.FirstOrDefault(x => x.Name.NormalizeWhitespace().ToFullString().ToUpper() == "CLASSTEMPLATE");
 
-            classes.Add(node); // save your visited classes
+                    if(attributeSyntax != null)
+                    {
+                        classes.Add(node); // Save visited classes
+                        break;
+                    }
+                }
+            }
 
             return node;
         }
