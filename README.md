@@ -8,5 +8,6 @@ https://user-images.githubusercontent.com/5206035/221620415-d798804d-2d83-41b5-8
 
 
 There are still much to be done, such as;
-1. Adding class attribute to configure the which class we want to appear in the assist menu.
-2. Read comment on class, and put it as description.
+1. Parse attribute value to generate template implicit (Test test = new Test() {}) vs explicit (Test test = new Test(); test.abc = "";).
+2. Format the output, not sure if this is possible though.
+3. Support initialization of more properties.
