@@ -11,6 +11,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Completion;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Text;
 
@@ -98,6 +99,7 @@ namespace MyCompletionProvider
                 {
                     continue;
                 }
+
 
                 // Use semantic model to extract all the properties of a class
                 var currentSemanticModel = await item.GetSemanticModelAsync(context.CancellationToken).ConfigureAwait(false);
@@ -210,7 +212,9 @@ namespace MyCompletionProvider
                         sb.AppendLine($"{myClass} {myClass.ToLower()} = new {myClass}() {{}};");
                     }
 
-                    var hint = CompletionItem.Create(sb.ToString(), properties: properties);
+                    var rule = CompletionItemRules.Create(formatOnCommit: true);
+                    var hint = CompletionItem.Create(sb.ToString(), properties: properties, rules: rule);
+
                     context.AddItem(hint);
                 }
             }
@@ -239,16 +243,29 @@ namespace MyCompletionProvider
             return Task.FromResult(CompletionDescription.FromText(item.Properties[Description]));
         }
 
-        public override Task<CompletionChange> GetChangeAsync(Document document, CompletionItem item, char? commitKey, CancellationToken cancellationToken)
-        {
+        public async override Task<CompletionChange> GetChangeAsync(Document document, CompletionItem item, char? commitKey, CancellationToken cancellationToken)
+        {            
             // Get new text replacement and span.
             var receiver = item.Properties[Receiver];
             var newText = $"{receiver}.{item.DisplayText}";
             var newSpan = new TextSpan(item.Span.Start, 1);
 
+            //var newStatement =  SyntaxFactory.ParseStatement(newText).NormalizeWhitespace();
+            //var processedStatement = newStatement.WithAdditionalAnnotations(Formatter.Annotation);
+
             // Return the completion change with the new text change.
             var textChange = new TextChange(newSpan, newText);
-            return Task.FromResult(CompletionChange.Create(textChange, includesCommitCharacter: true));
+
+            var result = CompletionChange.Create(textChange, includesCommitCharacter: true);
+
+            // format any node with explicit formatter annotation
+            //await Formatter.FormatAsync(document, Formatter.Annotation);
+
+            //// format any elastic whitespace
+            //await Formatter.FormatAsync(document, SyntaxAnnotation.ElasticAnnotation);
+
+
+            return result;
         }
     }
 
