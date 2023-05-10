@@ -6,12 +6,14 @@ namespace MyCompletionProvider
     {
         public static readonly Dictionary<string, string> PROPERTYTYPE_REFERENCE = new Dictionary<string, string>()
         {
-            {"String", "\"\"" },
-            {"Int64", "1" },
-            {"Int32", "1" },
-            {"Boolean", "true" },
+            {"string", "\"\"" },
+            {"int", "1" },
+            {"long", "1" },
+            {"short", "1" },
+            {"double", "1.0" },
+            {"bool", "true" },
             {"decimal", "1.00m" },
-            {"List", "new List<T>()" },
+            {"System.DateTime", "DateTime.Now" }
         };
     }
 }

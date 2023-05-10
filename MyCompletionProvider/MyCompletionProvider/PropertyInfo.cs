@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace MyCompletionProvider
+﻿namespace MyCompletionProvider
 {
     public class PropertyInfo
     {
@@ -11,5 +7,6 @@ namespace MyCompletionProvider
         public string Name { get; set; }
 
         public string Type { get; set; }
+        public bool IsNullable { get; set; }
     }
 }

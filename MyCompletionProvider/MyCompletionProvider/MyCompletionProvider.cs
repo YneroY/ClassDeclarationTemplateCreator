@@ -1,17 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Composition;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Completion;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Text;
 
@@ -23,6 +20,11 @@ namespace MyCompletionProvider
     {
         private const string Receiver = nameof(Receiver);
         private const string Description = nameof(Description);
+        private const string Tag = nameof(Tag);
+        private const string Snippet = nameof(Snippet);
+
+        private const string CLASSTEMPLATEATTRIBUTE = @"[System.AttributeUsage(AttributeTargets.Class)]
+public class ClassTemplateAttribute : System.Attribute {}";
 
         public override bool ShouldTriggerCompletion(SourceText text, int caretPosition, CompletionTrigger trigger, OptionSet options)
         {
@@ -56,6 +58,23 @@ namespace MyCompletionProvider
                 (char.IsWhiteSpace(previousCh) || previousCh == '\t' || previousCh == '\r' || previousCh == '\n');
         }
 
+        private static bool IsClassAttributeCompletion(SourceText text, int position)
+        {
+            // Provide completion if user typed "." after a whitespace/tab/newline char.
+            var charStartPosition = position - 3;
+
+            if (charStartPosition <= 0)
+            {
+                return false;
+            }
+
+            string possibleWord = new string(new char[] { text[charStartPosition], text[charStartPosition + 1], text[charStartPosition + 2] });
+
+            var ch = text[charStartPosition];
+            var previousCh = text[charStartPosition - 1];
+            return possibleWord == "cad";
+        }
+
         private static void Container_TextChanged(object sender, TextChangeEventArgs e)
         {
             throw new System.NotImplementedException();
@@ -68,16 +87,28 @@ namespace MyCompletionProvider
             var model = await context.Document.GetSemanticModelAsync(context.CancellationToken).ConfigureAwait(false);
             var text = await model.SyntaxTree.GetTextAsync(context.CancellationToken).ConfigureAwait(false);
 
-            //if (!ShouldTriggerCompletion(text, context.Position))
-            //{
-            //    return;
-            //}
+            #region Snippet to produce required attribute.
+
+            if (ShouldTriggerCompletion(text, context.Position))
+            {
+                var properties = ImmutableDictionary<string, string>.Empty
+                                    .Add(Tag, TagCategory.CLASS_TEMPLATE_ATTRIBUTE)
+                                    .Add(Description, "Attribute to produce class template")
+                                    .Add(Snippet, CLASSTEMPLATEATTRIBUTE);
+
+                var rule = CompletionItemRules.Create(formatOnCommit: true);
+                var hint = CompletionItem.Create("ClassTemplateAttribute", properties: properties, rules: rule);
+
+                context.AddItem(hint);
+                return;
+            }
+
+            #endregion
 
             var classVisitor = new ClassVirtualizationVisitor();
 
             Dictionary<string, List<string>> namespaceToClassesMapping = new Dictionary<string, List<string>>();
             Dictionary<string, List<PropertyInfo>> classToPropertiesMapping = new Dictionary<string, List<PropertyInfo>>();
-            //Dictionary<string, string> classToCommentMapping = new Dictionary<string, string>();
 
             foreach (var item in allDocuments)
             {
@@ -156,8 +187,12 @@ namespace MyCompletionProvider
                     foreach (var property in properties)
                     {
                         IPropertySymbol propertySymbol = (IPropertySymbol)property;
-                        string typeName = propertySymbol.Type.Name;
-                        classToPropertiesMapping[className].Add(new PropertyInfo() { Name = property.Name.ToString(), Type = typeName });
+
+                        //string typeName = propertySymbol.Type.Name;
+                        string propertySymbolType = propertySymbol.Type.ToString();
+                        //bool isNullable = propertySymbol.Type.NullableAnnotation != null;
+                        bool isNullable = propertySymbol.Type.NullableAnnotation == NullableAnnotation.Annotated;
+                        classToPropertiesMapping[className].Add(new PropertyInfo() { Name = property.Name.ToString(), Type = propertySymbolType, IsNullable = isNullable });
                     }
                 }
 
@@ -185,26 +220,32 @@ namespace MyCompletionProvider
                         sb.AppendLine($"{myClass} {myClass.ToLower()} = new {myClass}()");
                         sb.AppendLine($"{{");
 
-                        //string declarationSyntax = $"{myClass} {myClass.ToLower()} = new {myClass}() {{ ";
-
                         List<PropertyInfo> propertyInfos = classToPropertiesMapping[myClass];
 
                         for (int x = 0; x < numOfProperties; x++)
                         {
                             string comma = x == numOfProperties - 1 ? "" : ",";
 
-                            string propertyValue = "?";
+                            string propertyValue = "null";
 
                             if (Helper.PROPERTYTYPE_REFERENCE.ContainsKey(propertyInfos[x].Type))
                             {
                                 propertyValue = Helper.PROPERTYTYPE_REFERENCE[propertyInfos[x].Type];
                             }
 
-                            //declarationSyntax += $"{propertyInfos[x].Name} = {propertyValue}{comma}";
-                            sb.AppendLine($"   {propertyInfos[x].Name} = {propertyValue}{comma}");
+                            // Nullable property has precedence..
+                            if (propertyInfos[x].IsNullable)
+                            {
+                                sb.AppendLine($"   {propertyInfos[x].Name} = null{comma}");
+                            }
+                            else
+                            {
+                                sb.AppendLine($"   {propertyInfos[x].Name} = {propertyValue}{comma}");
+                            }
+
+                            
                         }
 
-                        //declarationSyntax += $"}};";
                         sb.AppendLine($"}};");
                     }
                     else
@@ -244,28 +285,44 @@ namespace MyCompletionProvider
         }
 
         public async override Task<CompletionChange> GetChangeAsync(Document document, CompletionItem item, char? commitKey, CancellationToken cancellationToken)
-        {            
-            // Get new text replacement and span.
-            var receiver = item.Properties[Receiver];
-            var newText = $"{receiver}.{item.DisplayText}";
-            var newSpan = new TextSpan(item.Span.Start, 1);
+        {
+            string tagValue = "";
 
-            //var newStatement =  SyntaxFactory.ParseStatement(newText).NormalizeWhitespace();
-            //var processedStatement = newStatement.WithAdditionalAnnotations(Formatter.Annotation);
+            if (item.Properties.ContainsKey("Tag"))
+            {
+                tagValue = item.Properties["Tag"];               
+            }
 
-            // Return the completion change with the new text change.
-            var textChange = new TextChange(newSpan, newText);
+            if(!string.IsNullOrEmpty(tagValue) && tagValue == TagCategory.CLASS_TEMPLATE_ATTRIBUTE)
+            {
+                var textChange = new TextChange(new TextSpan(item.Span.Start - 1, 1), item.Properties[Snippet]);
+                var result = CompletionChange.Create(textChange, includesCommitCharacter: true);
+                return result;
+            }
+            else
+            {
 
-            var result = CompletionChange.Create(textChange, includesCommitCharacter: true);
+                // Get new text replacement and span.
+                var receiver = item.Properties[Receiver];
+                var newText = $"{receiver}.{item.DisplayText}";
+                var newSpan = new TextSpan(item.Span.Start, 1);
 
-            // format any node with explicit formatter annotation
-            //await Formatter.FormatAsync(document, Formatter.Annotation);
+                //var newStatement =  SyntaxFactory.ParseStatement(newText).NormalizeWhitespace();
+                //var processedStatement = newStatement.WithAdditionalAnnotations(Formatter.Annotation);
 
-            //// format any elastic whitespace
-            //await Formatter.FormatAsync(document, SyntaxAnnotation.ElasticAnnotation);
+                // Return the completion change with the new text change.
+                var textChange = new TextChange(newSpan, newText);
 
+                var result = CompletionChange.Create(textChange, includesCommitCharacter: true);
 
-            return result;
+                // format any node with explicit formatter annotation
+                //await Formatter.FormatAsync(document, Formatter.Annotation);
+
+                //// format any elastic whitespace
+                //await Formatter.FormatAsync(document, SyntaxAnnotation.ElasticAnnotation);
+
+                return result;
+            }
         }
     }
 
